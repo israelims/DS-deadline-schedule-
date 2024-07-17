@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda Editável</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 80%;
+            max-width: 600px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        form {
+            display: flex;
+            margin-bottom: 20px;
+            align-items: flex-start; /* Alinhar itens ao topo */
+        }
+
+        form > * {
+            margin-right: 10px; /* Espaçamento entre os elementos do formulário */
+        }
+
+        button#save-button, button#download-button {
+            margin-left: auto; /* Empurrar os botões "Salvar" e "Download" para a direita */
+        }
+        
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px 0 0 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            background-color: #f9f9f9;
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-text {
+            flex: 1;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .edit-item, .delete-item, .check-item {
+            font-size: 20px;
+            color: #888;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .edit-item:hover, .delete-item:hover, .check-item:hover {
+            color: #555;
+        }
+
+        .edit-item {
+            margin-right: 10px;
+        }
+
+        .checked {
+            text-decoration: line-through;
+            color: #4CAF50; /* Verde para itens marcados como "check" */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Minha Agenda</h1>
+
+        <form id="agenda-form"> 
+            <input type="text" id="item" placeholder="Digite um novo item..." required>
+            <button type="submit">Adicionar</button>         
+            <button type="button" id="save-button">Salvar Agenda</button>
+            <button type="button" id="download-button">Download Agenda</button>
+        </form>
+
+        <!-- Agenda é autosave -->
+
+        <ul id="agenda-list">
+            <!-- Itens da agenda serão inseridos aqui -->
+        </ul>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('agenda-form');
+            const agendaList = document.getElementById('agenda-list');
+            const saveButton = document.getElementById('save-button');
+            const downloadButton = document.getElementById('download-button');
+
+            // Carregar itens do localStorage ao carregar a página
+            carregarItens();
+
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                
+                const itemInput = document.getElementById('item');
+                const itemText = itemInput.value.trim();
+
+                if (itemText !== '') {
+                    adicionarItem(itemText);
+                    salvarNoLocalStorage();
+                    itemInput.value = '';
+                }
+            });
+
+            function adicionarItem(texto, concluido = false) {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span class="item-text ${concluido ? 'checked' : ''}">${texto}</span>
+                    <span class="edit-item" title="Editar">&#9998;</span>
+                    <span class="check-item" title="Marcar como concluído">&#10003;</span>
+                    <span class="delete-item" title="Excluir">&times;</span>
+                `;
+                agendaList.appendChild(li);
+
+                // Adicionar evento para editar item
+                const editBtn = li.querySelector('.edit-item');
+                editBtn.addEventListener('click', function() {
+                    const itemText = li.querySelector('.item-text');
+                    const novoTexto = prompt('Editar item:', itemText.textContent);
+                    if (novoTexto !== null) {
+                        itemText.textContent = novoTexto;
+                        salvarNoLocalStorage();
+                    }
+                });
+
+                // Adicionar evento para marcar como concluído
+                const checkBtn = li.querySelector('.check-item');
+                checkBtn.addEventListener('click', function() {
+                    const itemText = li.querySelector('.item-text');
+                    itemText.classList.toggle('checked');
+                    salvarNoLocalStorage();
+                });
+
+                // Adicionar evento para excluir item
+                const deleteBtn = li.querySelector('.delete-item');
+                deleteBtn.addEventListener('click', function() {
+                    li.remove();
+                    salvarNoLocalStorage();
+                });
+            }
+
+            function carregarItens() {
+                if (localStorage.getItem('itens')) {
+                    const itens = JSON.parse(localStorage.getItem('itens'));
+                    itens.forEach(function(item) {
+                        adicionarItem(item.texto, item.concluido);
+                    });
+                }
+            }
+
+            function salvarNoLocalStorage() {
+                const itens = [];
+                const listaItens = agendaList.querySelectorAll('li');
+                listaItens.forEach(function(item) {
+                    const texto = item.querySelector('.item-text').textContent;
+                    const concluido = item.querySelector('.item-text').classList.contains('checked');
+                    itens.push({ texto, concluido });
+                });
+                localStorage.setItem('itens', JSON.stringify(itens));
+            }
+
+            // Adicionar evento para salvar agenda
+            saveButton.addEventListener('click', function() {
+                salvarAgenda();
+            });
+
+            function salvarAgenda() {
+                salvarNoLocalStorage();
+                alert('Agenda salva com sucesso!');
+            }
+
+            // Adicionar evento para download da agenda
+            downloadButton.addEventListener('click', function() {
+                downloadAgenda();
+            });
+
+            function downloadAgenda() {
+                const itens = JSON.parse(localStorage.getItem('itens'));
+                if (!itens) {
+                    alert('Não há itens para baixar.');
+                    return;
+                }
+
+                let texto = '';
+                itens.forEach(function(item) {
+                    texto += `${item.texto}\n`;
+                });
+
+                const blob = new Blob([texto], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'agenda.txt'; // Nome do arquivo a ser baixado
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a); // Remove o elemento <a> após o download
+                URL.revokeObjectURL(url);
+            }
+        });
+    </script>
+    
+</body>
+</html>
